@@ -16,12 +16,15 @@
 直到合格或用尽迭代次数。
 """
 
+from uuid import uuid4
+
 from langgraph.graph import END, START, StateGraph
 
 from deep_research.agents.architect import ChiefArchitect
 from deep_research.agents.critic import CriticMaster
 from deep_research.agents.scout import DeepScout
 from deep_research.agents.writer import LeadWriter
+from deep_research.observability.handler import ObservabilityHandler
 from deep_research.state import ResearchState, create_initial_state
 
 
@@ -83,10 +86,17 @@ def get_graph():
     return _graph
 
 
-async def run_research(query: str, session_id: str, max_iterations: int = 2) -> ResearchState:
+async def run_research(
+    query: str, session_id: str, max_iterations: int = 2, trace_id: str | None = None
+) -> ResearchState:
     """运行一次完整的深度研究，返回最终状态（含报告）。"""
     state = create_initial_state(query, session_id, max_iterations)
     graph = get_graph()
-    # LangGraph 默认递归上限够用；研究流程节点数有限
-    final_state = await graph.ainvoke(state, config={"recursion_limit": 50})
+    # 挂可观测性 handler：callback 沿 graph 节点传播，捕获 4 个 Agent 的 LLM 调用
+    handler = ObservabilityHandler(
+        trace_id=trace_id or uuid4().hex, session_id=session_id, service="finagent-research"
+    )
+    final_state = await graph.ainvoke(
+        state, config={"recursion_limit": 50, "callbacks": [handler]}
+    )
     return final_state

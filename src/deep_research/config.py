@@ -39,6 +39,10 @@ SEARCH_PROVIDER = os.getenv("SEARCH_PROVIDER", "bochaai")
 # ===== Redis =====
 REDIS_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/1")
 
+# ===== MongoDB（可观测性追踪，与 finagent-core 共用，便于统一监控）=====
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://127.0.0.1:27017/")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "finagent")
+
 # ===== 服务 =====
 SERVER_HOST = os.getenv("SERVER_HOST", "127.0.0.1")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "8001"))

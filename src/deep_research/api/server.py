@@ -21,6 +21,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from deep_research import config
 from deep_research.graph import get_graph
+from deep_research.observability.handler import ObservabilityHandler
 from deep_research.state import create_initial_state
 
 app = FastAPI(title="finagent-research", version="1.0.0")
@@ -30,6 +31,7 @@ class ResearchRequest(BaseModel):
     query: str
     session_id: str | None = None
     max_iterations: int = 2
+    trace_id: str | None = None  # 由 finagent-core 传入，实现跨服务全链路追踪
 
 
 @app.get("/health")
@@ -48,10 +50,19 @@ async def research_stream(req: ResearchRequest):
         final_state = state
         sent = 0  # 已推送的消息数
 
+        # 可观测性 handler：trace_id 优先用调用方传入的（跨服务全链路追踪）
+        handler = ObservabilityHandler(
+            trace_id=req.trace_id or session_id,
+            session_id=session_id,
+            service="finagent-research",
+        )
+
         try:
             # stream_mode="values"：每个超步后产出完整状态
             async for s in graph.astream(
-                state, stream_mode="values", config={"recursion_limit": 50}
+                state,
+                stream_mode="values",
+                config={"recursion_limit": 50, "callbacks": [handler]},
             ):
                 final_state = s
                 msgs = s.get("messages", [])
